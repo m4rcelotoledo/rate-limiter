@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -28,8 +29,8 @@ func RateLimiterMiddleware(rateLimiter *limiter.RateLimiter) gin.HandlerFunc {
 			}
 
 			if !result.Allowed {
-				c.Header("X-RateLimit-Limit", string(rune(result.Limit)))
-				c.Header("X-RateLimit-Remaining", string(rune(result.Remaining)))
+				c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", result.Limit))
+				c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
 				c.Header("X-RateLimit-Reset", result.ResetTime.Format(time.RFC3339))
 
 				c.JSON(http.StatusTooManyRequests, gin.H{
@@ -40,8 +41,8 @@ func RateLimiterMiddleware(rateLimiter *limiter.RateLimiter) gin.HandlerFunc {
 			}
 
 			// Adiciona headers de rate limit
-			c.Header("X-RateLimit-Limit", string(rune(result.Limit)))
-			c.Header("X-RateLimit-Remaining", string(rune(result.Remaining)))
+			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", result.Limit))
+			c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
 			c.Header("X-RateLimit-Reset", result.ResetTime.Format(time.RFC3339))
 
 			c.Next()
@@ -60,8 +61,8 @@ func RateLimiterMiddleware(rateLimiter *limiter.RateLimiter) gin.HandlerFunc {
 		}
 
 		if !result.Allowed {
-			c.Header("X-RateLimit-Limit", string(rune(result.Limit)))
-			c.Header("X-RateLimit-Remaining", string(rune(result.Remaining)))
+			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", result.Limit))
+			c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
 			c.Header("X-RateLimit-Reset", result.ResetTime.Format(time.RFC3339))
 
 			c.JSON(http.StatusTooManyRequests, gin.H{
@@ -72,8 +73,8 @@ func RateLimiterMiddleware(rateLimiter *limiter.RateLimiter) gin.HandlerFunc {
 		}
 
 		// Adiciona headers de rate limit
-		c.Header("X-RateLimit-Limit", string(rune(result.Limit)))
-		c.Header("X-RateLimit-Remaining", string(rune(result.Remaining)))
+		c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", result.Limit))
+		c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
 		c.Header("X-RateLimit-Reset", result.ResetTime.Format(time.RFC3339))
 
 		c.Next()
