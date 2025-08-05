@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Limiter Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .counter {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .headers {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Rate Limiter Demo</h1>
+
+        <div class="section">
+            <h2>1. Health Check</h2>
+            <button onclick="checkHealth()">Verificar Saúde da API</button>
+            <div id="healthResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Rate Limiting por IP</h2>
+            <p>Limite: 10 requisições por segundo</p>
+            <div class="counter">Requisições feitas: <span id="ipCounter">0</span>/10</div>
+            <button onclick="testIPRateLimit()">Fazer Requisição (IP)</button>
+            <button onclick="resetIPCounter()">Resetar Contador</button>
+            <div id="ipResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. Rate Limiting por Token</h2>
+            <p>Limite: 100 requisições por segundo</p>
+            <div class="counter">Requisições feitas: <span id="tokenCounter">0</span>/100</div>
+            <input type="text" id="tokenInput" placeholder="Digite um token" value="test-token-123" style="width: 200px; padding: 5px; margin: 5px;">
+            <button onclick="testTokenRateLimit()">Fazer Requisição (Token)</button>
+            <button onclick="resetTokenCounter()">Resetar Contador</button>
+            <div id="tokenResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>4. Teste Rápido</h2>
+            <button onclick="quickTest()">Teste Rápido (10 requisições)</button>
+            <div id="quickResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>5. Limpar Rate Limits</h2>
+            <button onclick="clearAllLimits()">Limpar Todos os Rate Limits</button>
+            <div id="clearResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let ipCounter = 0;
+        let tokenCounter = 0;
+
+        async function makeRequest(url, headers = {}) {
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: headers
+                });
+
+                const data = await response.text();
+                const rateLimitHeaders = {
+                    limit: response.headers.get('X-RateLimit-Limit'),
+                    remaining: response.headers.get('X-RateLimit-Remaining'),
+                    reset: response.headers.get('X-RateLimit-Reset')
+                };
+
+                return {
+                    status: response.status,
+                    data: data,
+                    headers: rateLimitHeaders
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    data: `Erro: ${error.message}`,
+                    headers: {}
+                };
+            }
+        }
+
+        function showResult(elementId, result, type = 'info') {
+            const element = document.getElementById(elementId);
+            const statusText = result.status === 200 ? '✅ Sucesso' :
+                              result.status === 429 ? '🚫 Rate Limit Excedido' :
+                              '❌ Erro';
+
+            const headersText = result.headers.limit ?
+                `\nHeaders:\nX-RateLimit-Limit: ${result.headers.limit}\nX-RateLimit-Remaining: ${result.headers.remaining}\nX-RateLimit-Reset: ${result.headers.reset}` : '';
+
+            element.innerHTML = `<div class="result ${type}">${statusText} (HTTP ${result.status})\nResposta: ${result.data}${headersText}</div>`;
+        }
+
+        async function checkHealth() {
+            const result = await makeRequest('http://localhost:8080/health');
+            showResult('healthResult', result, result.status === 200 ? 'success' : 'error');
+        }
+
+        async function testIPRateLimit() {
+            const result = await makeRequest('http://localhost:8080/test');
+
+            if (result.status === 200) {
+                ipCounter++;
+                showResult('ipResult', result, 'success');
+            } else if (result.status === 429) {
+                showResult('ipResult', result, 'warning');
+            } else {
+                showResult('ipResult', result, 'error');
+            }
+
+            document.getElementById('ipCounter').textContent = ipCounter;
+        }
+
+        async function testTokenRateLimit() {
+            const token = document.getElementById('tokenInput').value;
+            const headers = token ? { 'API_KEY': token } : {};
+
+            const result = await makeRequest('http://localhost:8080/test', headers);
+
+            if (result.status === 200) {
+                tokenCounter++;
+                showResult('tokenResult', result, 'success');
+            } else if (result.status === 429) {
+                showResult('tokenResult', result, 'warning');
+            } else {
+                showResult('tokenResult', result, 'error');
+            }
+
+            document.getElementById('tokenCounter').textContent = tokenCounter;
+        }
+
+        async function quickTest() {
+            const results = [];
+            for (let i = 1; i <= 10; i++) {
+                const result = await makeRequest('http://localhost:8080/test');
+                results.push(`Requisição ${i}: HTTP ${result.status} - ${result.status === 200 ? '✅' : result.status === 429 ? '🚫' : '❌'}`);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            document.getElementById('quickResult').innerHTML = `<div class="result info">${results.join('\n')}</div>`;
+        }
+
+        async function clearAllLimits() {
+            try {
+                // Simula limpeza do Redis (em produção, faria uma chamada para limpar o Redis)
+                ipCounter = 0;
+                tokenCounter = 0;
+                document.getElementById('ipCounter').textContent = ipCounter;
+                document.getElementById('tokenCounter').textContent = tokenCounter;
+
+                document.getElementById('clearResult').innerHTML = '<div class="result success">✅ Contadores resetados! Use "make redis-clear-all" para limpar o Redis.</div>';
+            } catch (error) {
+                document.getElementById('clearResult').innerHTML = `<div class="result error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+
+        function resetIPCounter() {
+            ipCounter = 0;
+            document.getElementById('ipCounter').textContent = ipCounter;
+            document.getElementById('ipResult').innerHTML = '<div class="result info">Contador de IP resetado</div>';
+        }
+
+        function resetTokenCounter() {
+            tokenCounter = 0;
+            document.getElementById('tokenCounter').textContent = tokenCounter;
+            document.getElementById('tokenResult').innerHTML = '<div class="result info">Contador de Token resetado</div>';
+        }
+
+        // Verificar saúde da API ao carregar a página
+        window.onload = function() {
+            checkHealth();
+        };
+    </script>
+</body>
+</html>

@@ -53,6 +53,9 @@ func main() {
 	// Adiciona o middleware de rate limiting
 	router.Use(middleware.RateLimiterMiddleware(rateLimiter))
 
+	// Servir arquivos estáticos
+	router.Static("/static", "./static")
+
 	// Rotas de exemplo
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -65,6 +68,13 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "healthy",
 			"time":   time.Now().Format(time.RFC3339),
+		})
+	})
+
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Request processed successfully",
+			"time":    time.Now().Format(time.RFC3339),
 		})
 	})
 
